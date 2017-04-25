@@ -28,7 +28,7 @@ from numpy import random
 
 import tensorflow as tf
 
-from caffe_classes import class_names
+from imagenet_classnames import class_names
 
 train_x = zeros((1, 227,227,3)).astype(float32)
 train_y = zeros((1, 1000))
@@ -203,5 +203,5 @@ print (time.time()-t), "sec elapsed on avg"
 
 inds = argsort(output)[0,:]
 for i in range(5):
-    print class_names[inds[-1-i]], output[0, inds[-1-i]]
+    print(class_names[inds[-1-i]], output[0, inds[-1-i]])
 
