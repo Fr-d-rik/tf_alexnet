@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Uncluttered things a little bit and stored individual layers in class for easier access
-#
+# similar to the vgg_net implementation at https://github.com/machrisaa/tensorflow-vgg
 # Based on code by:
 # Michael Guerzhoy and Davi Frossard, 2016
 # AlexNet implementation in TensorFlow, with weights
@@ -29,7 +29,7 @@ class AlexNet:
             print(path)
 
         self.data_dict = np.load(weights_path, encoding='latin1').item()
-        self.imagenet_mean = np.mean([103.939, 116.779, 123.68])
+        self.imagenet_mean = np.mean([103.939, 116.779, 123.68])  # imagenet mean (channel-wise go global)
         print("npy file loaded")
 
     def build(self, rgb):
@@ -97,8 +97,11 @@ class AlexNet:
         assert c_o % group == 0
         with tf.variable_scope(name):
             assert isinstance(self.data_dict, dict)
-            kernel = tf.Variable(self.data_dict[name][0])
-            biases = tf.Variable(self.data_dict[name][1])
+            kernel = tf.constant(self.data_dict[name][0])
+            biases = tf.constant(self.data_dict[name][1])
+            # print('layer: ' + name)
+            # print('filter: ' + str(self.data_dict[name][0].shape))
+            # print('bias: ' + str(self.data_dict[name][1].shape))
             if group == 1:
                 conv = tf.nn.conv2d(in_tensor, kernel, [1, s_h, s_w, 1], padding=padding)
             else:
@@ -112,6 +115,6 @@ class AlexNet:
     def fc_layer(self, in_tensor, name):
         with tf.variable_scope(name):
             assert isinstance(self.data_dict, dict)
-            weights = tf.Variable(self.data_dict[name][0], name='weights')
-            biases = tf.Variable(self.data_dict[name][1], name='biases')
+            weights = tf.constant(self.data_dict[name][0], name='weights')
+            biases = tf.constant(self.data_dict[name][1], name='biases')
             return tf.nn.relu_layer(in_tensor, weights, biases)
