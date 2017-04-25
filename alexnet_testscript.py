@@ -18,6 +18,8 @@ xdim = train_x.shape[1:]
 im1 = (imread('example_images/laska.png')[:224, :224, :3]).astype(np.float32)
 im2 = (imread('example_images/poodle.png')[:224, :224, :3]).astype(np.float32)
 
+print(im1.min())
+print(im1.max())
 x = tf.placeholder(tf.float32, (None,) + xdim)
 alex_net = AlexNet()
 alex_net.build(x)

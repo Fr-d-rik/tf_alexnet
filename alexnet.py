@@ -32,7 +32,10 @@ class AlexNet:
         self.imagenet_mean = np.mean([103.939, 116.779, 123.68])  # imagenet mean (channel-wise go global)
         print("npy file loaded")
 
-    def build(self, rgb):
+    def build(self, rgb, rescale=1.0):
+
+        if rescale != 1.0:
+            rgb *= rescale
 
         norm_rgb = rgb - self.imagenet_mean
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=norm_rgb)
