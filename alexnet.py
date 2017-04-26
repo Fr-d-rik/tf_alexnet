@@ -29,51 +29,43 @@ class AlexNet:
             print(path)
 
         self.data_dict = np.load(weights_path, encoding='latin1').item()
-        self.imagenet_mean = np.mean([103.939, 116.779, 123.68])  # imagenet mean (channel-wise go global)
-        print("npy file loaded")
+        self.imagenet_mean = np.mean([123.68, 116.779, 103.939])  # imagenet mean (channel-wise to global)
 
-    def build(self, rgb, rescale=1.0):
+    def build(self, rgb, rescale=255.0):
 
-        if rescale != 1.0:
-            rgb *= rescale
+        rgb_scaled = rgb * rescale
 
-        norm_rgb = rgb - self.imagenet_mean
+        self.rgb_scaled = rgb_scaled
+
+        norm_rgb = rgb_scaled - self.imagenet_mean
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=norm_rgb)
-        norm_bgr = tf.concat(axis=3, values=[blue, green, red])
+        bgr_normed = tf.concat(axis=3, values=[blue, green, red])
+
+        self.bgr_normed = bgr_normed
 
         # conv1
-        self.conv1_in = self.convolution(norm_bgr, c_o=96, s_h=4, s_w=4, padding='SAME', group=1, name='conv1')
-        self.conv1 = tf.nn.relu(self.conv1_in)
-
-        # lrn1
+        self.conv1_lin = self.convolution(bgr_normed, c_o=96, s_h=4, s_w=4, padding='SAME', group=1, name='conv1')
+        self.conv1 = tf.nn.relu(self.conv1_lin)
         self.lrn1 = tf.nn.local_response_normalization(self.conv1, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0)
-
-        # maxpool1
         self.maxpool1 = tf.nn.max_pool(self.lrn1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # conv2
-        self.conv2_in = self.convolution(self.maxpool1, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv2')
-        self.conv2 = tf.nn.relu(self.conv2_in)
-
-        # lrn2
+        self.conv2_lin = self.convolution(self.maxpool1, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv2')
+        self.conv2 = tf.nn.relu(self.conv2_lin)
         self.lrn2 = tf.nn.local_response_normalization(self.conv2, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0)
-
-        # maxpool2
         self.maxpool2 = tf.nn.max_pool(self.lrn2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # conv3
-        self.conv3_in = self.convolution(self.maxpool2, c_o=384, s_h=1, s_w=1, padding='SAME', group=1, name='conv3')
-        self.conv3 = tf.nn.relu(self.conv3_in)
+        self.conv3_lin = self.convolution(self.maxpool2, c_o=384, s_h=1, s_w=1, padding='SAME', group=1, name='conv3')
+        self.conv3 = tf.nn.relu(self.conv3_lin)
 
         # conv4
-        self.conv4_in = self.convolution(self.conv3, c_o=384, s_h=1, s_w=1, padding='SAME', group=2, name='conv4')
-        self.conv4 = tf.nn.relu(self.conv4_in)
+        self.conv4_lin = self.convolution(self.conv3, c_o=384, s_h=1, s_w=1, padding='SAME', group=2, name='conv4')
+        self.conv4 = tf.nn.relu(self.conv4_lin)
 
         # conv5
-        self.conv5_in = self.convolution(self.conv4, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv5')
-        self.conv5 = tf.nn.relu(self.conv5_in)
-
-        # maxpool5
+        self.conv5_lin = self.convolution(self.conv4, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv5')
+        self.conv5 = tf.nn.relu(self.conv5_lin)
         self.maxpool5 = tf.nn.max_pool(self.conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # flatten
@@ -82,15 +74,13 @@ class AlexNet:
 
         # fc6
         self.fc6 = self.fc_layer(in_tensor=maxpool5_flat, name='fc6')
-
-        # fc7
         self.fc7 = self.fc_layer(in_tensor=self.fc6, name='fc7')
-
-        # fc8
         self.fc8 = self.fc_layer(in_tensor=self.fc7, name='fc8')
 
         # prob
         self.prob = tf.nn.softmax(self.fc8)
+
+        self.data_dict = None
 
     def convolution(self, in_tensor, c_o, s_h, s_w, padding, group, name):
         """From https://github.com/ethereon/caffe-tensorflow
@@ -100,8 +90,8 @@ class AlexNet:
         assert c_o % group == 0
         with tf.variable_scope(name):
             assert isinstance(self.data_dict, dict)
-            kernel = tf.constant(self.data_dict[name][0])
-            biases = tf.constant(self.data_dict[name][1])
+            kernel = tf.constant(self.data_dict[name][0], name='filter')
+            biases = tf.constant(self.data_dict[name][1], name='biases')
             # print('layer: ' + name)
             # print('filter: ' + str(self.data_dict[name][0].shape))
             # print('bias: ' + str(self.data_dict[name][1].shape))
