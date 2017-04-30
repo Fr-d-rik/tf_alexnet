@@ -33,39 +33,32 @@ class AlexNet:
 
     def build(self, rgb, rescale=255.0):
 
-        rgb_scaled = rgb * rescale
+        self.rgb_scaled = rgb * rescale
 
-        self.rgb_scaled = rgb_scaled
-
-        norm_rgb = rgb_scaled - self.imagenet_mean
-        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=norm_rgb)
+        rgb_normed = self.rgb_scaled - self.imagenet_mean
+        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_normed)
         bgr_normed = tf.concat(axis=3, values=[blue, green, red])
 
         self.bgr_normed = bgr_normed
 
         # conv1
-        self.conv1_lin = self.convolution(bgr_normed, c_o=96, s_h=4, s_w=4, padding='SAME', group=1, name='conv1')
-        self.conv1 = tf.nn.relu(self.conv1_lin)
+        self.conv1, self.conv1_lin = self.convolution(bgr_normed, s_h=4, s_w=4, group=1, name='conv1')
         self.lrn1 = tf.nn.local_response_normalization(self.conv1, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0)
         self.maxpool1 = tf.nn.max_pool(self.lrn1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # conv2
-        self.conv2_lin = self.convolution(self.maxpool1, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv2')
-        self.conv2 = tf.nn.relu(self.conv2_lin)
+        self.conv2, self.conv2_lin = self.convolution(self.maxpool1, s_h=1, s_w=1, group=2, name='conv2')
         self.lrn2 = tf.nn.local_response_normalization(self.conv2, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0)
         self.maxpool2 = tf.nn.max_pool(self.lrn2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # conv3
-        self.conv3_lin = self.convolution(self.maxpool2, c_o=384, s_h=1, s_w=1, padding='SAME', group=1, name='conv3')
-        self.conv3 = tf.nn.relu(self.conv3_lin)
+        self.conv3, self.conv3_lin = self.convolution(self.maxpool2, s_h=1, s_w=1, group=1, name='conv3')
 
         # conv4
-        self.conv4_lin = self.convolution(self.conv3, c_o=384, s_h=1, s_w=1, padding='SAME', group=2, name='conv4')
-        self.conv4 = tf.nn.relu(self.conv4_lin)
+        self.conv4, self.conv4_lin = self.convolution(self.conv3, s_h=1, s_w=1, group=2, name='conv4')
 
         # conv5
-        self.conv5_lin = self.convolution(self.conv4, c_o=256, s_h=1, s_w=1, padding='SAME', group=2, name='conv5')
-        self.conv5 = tf.nn.relu(self.conv5_lin)
+        self.conv5, self.conv5_lin = self.convolution(self.conv4, s_h=1, s_w=1, group=2, name='conv5')
         self.maxpool5 = tf.nn.max_pool(self.conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         # flatten
@@ -82,12 +75,9 @@ class AlexNet:
 
         self.data_dict = None
 
-    def convolution(self, in_tensor, c_o, s_h, s_w, padding, group, name):
+    def convolution(self, in_tensor, s_h, s_w, group, name):
         """From https://github.com/ethereon/caffe-tensorflow
         """
-        c_i = in_tensor.get_shape()[-1]
-        assert c_i % group == 0
-        assert c_o % group == 0
         with tf.variable_scope(name):
             assert isinstance(self.data_dict, dict)
             kernel = tf.constant(self.data_dict[name][0], name='filter')
@@ -96,14 +86,16 @@ class AlexNet:
             # print('filter: ' + str(self.data_dict[name][0].shape))
             # print('bias: ' + str(self.data_dict[name][1].shape))
             if group == 1:
-                conv = tf.nn.conv2d(in_tensor, kernel, [1, s_h, s_w, 1], padding=padding)
+                conv = tf.nn.conv2d(in_tensor, kernel, [1, s_h, s_w, 1], padding='SAME')
             else:
                 input_groups = tf.split(in_tensor, group, 3)
                 kernel_groups = tf.split(kernel, group, 3)
-                output_groups = [tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
+                output_groups = [tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding='SAME')
                                  for i, k in zip(input_groups, kernel_groups)]
                 conv = tf.concat(output_groups, 3)
-            return tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:])
+            conv_lin = tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:], name='lin')
+            conv = tf.nn.relu(conv_lin, name='relu')
+            return conv, conv_lin
 
     def fc_layer(self, in_tensor, name):
         with tf.variable_scope(name):
