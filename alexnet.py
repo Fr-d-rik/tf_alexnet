@@ -26,18 +26,17 @@ class AlexNet:
             path = os.path.abspath(os.path.join(path, os.pardir))
             path = os.path.join(path, 'bvlc_alexnet.npy')
             weights_path = path
-            print(path)
 
         self.data_dict = np.load(weights_path, encoding='latin1').item()
         self.imagenet_mean = np.mean([123.68, 116.779, 103.939])  # imagenet mean (channel-wise to global)
 
     def build(self, rgb, rescale=255.0):
 
-        self.rgb_scaled = rgb * rescale
+        self.rgb_scaled = tf.multiply(rgb, rescale, name='rgb_scaled')
 
         rgb_normed = self.rgb_scaled - self.imagenet_mean
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_normed)
-        bgr_normed = tf.concat(axis=3, values=[blue, green, red])
+        bgr_normed = tf.concat(axis=3, values=[blue, green, red], name='bgr_normed')
 
         self.bgr_normed = bgr_normed
 
