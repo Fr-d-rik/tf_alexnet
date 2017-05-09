@@ -68,7 +68,7 @@ class AlexNet:
         fc8 = self.fc_layer(in_tensor=fc7, name='fc8')
 
         # prob
-        prob = tf.nn.softmax(fc8)
+        tf.nn.softmax(fc8)
 
         self.data_dict = None
 
@@ -89,7 +89,7 @@ class AlexNet:
                 conv = tf.concat(output_groups, 3)
             conv_lin = tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:], name='lin')
             conv = tf.nn.relu(conv_lin, name='relu')
-            return conv, conv_lin
+            return conv
 
     def fc_layer(self, in_tensor, name):
         with tf.variable_scope(name):
