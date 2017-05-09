@@ -1,4 +1,4 @@
-Somewhat cleaned up version of pre-trained AlexNet for tensorflow and python 3.
+alexnet.py is a somewhat cleaned up version of pre-trained AlexNet for tensorflow and python 3.
 
 Weights are available here:
 http://www.cs.toronto.edu/~guerzhoy/tf_alexnet/bvlc_alexnet.npy
