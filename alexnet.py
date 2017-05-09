@@ -52,7 +52,7 @@ class AlexNet:
         conv3 = self.convolution(maxpool2, s_h=1, s_w=1, group=1, name='conv3')
 
         # conv4
-        conv4, conv4_lin = self.convolution(conv3, s_h=1, s_w=1, group=2, name='conv4')
+        conv4 = self.convolution(conv3, s_h=1, s_w=1, group=2, name='conv4')
 
         # conv5
         conv5 = self.convolution(conv4, s_h=1, s_w=1, group=2, name='conv5')
