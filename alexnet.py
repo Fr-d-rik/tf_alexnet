@@ -63,9 +63,9 @@ class AlexNet:
         maxpool5_flat = tf.reshape(maxpool5, [-1, int(np.prod(maxpool5.get_shape()[1:]))], name='pool5_flat')
 
         # fc6
-        relu6 = self.fc_layer(in_tensor=maxpool5_flat, name='fc6')
-        relu7 = self.fc_layer(in_tensor=relu6, name='fc7')
-        relu8 = self.fc_layer(in_tensor=relu7, name='fc8')
+        relu6, _ = self.fc_layer(in_tensor=maxpool5_flat, name='fc6')
+        relu7, _ = self.fc_layer(in_tensor=relu6, name='fc7')
+        relu8, _ = self.fc_layer(in_tensor=relu7, name='fc8')
 
         # prob
         tf.nn.softmax(relu8)
