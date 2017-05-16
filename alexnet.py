@@ -63,12 +63,12 @@ class AlexNet:
         maxpool5_flat = tf.reshape(maxpool5, [-1, int(np.prod(maxpool5.get_shape()[1:]))], name='pool5_flat')
 
         # fc6
-        fc6 = self.fc_layer(in_tensor=maxpool5_flat, name='fc6')
-        fc7 = self.fc_layer(in_tensor=fc6, name='fc7')
-        fc8 = self.fc_layer(in_tensor=fc7, name='fc8')
+        relu6 = self.fc_layer(in_tensor=maxpool5_flat, name='fc6')
+        relu7 = self.fc_layer(in_tensor=relu6, name='fc7')
+        relu8 = self.fc_layer(in_tensor=relu7, name='fc8')
 
         # prob
-        tf.nn.softmax(fc8)
+        tf.nn.softmax(relu8)
 
         self.data_dict = None
 
@@ -96,4 +96,7 @@ class AlexNet:
             assert isinstance(self.data_dict, dict)
             weights = tf.constant(self.data_dict[name][0], name='weights')
             biases = tf.constant(self.data_dict[name][1], name='biases')
-            return tf.nn.relu_layer(in_tensor, weights, biases)
+
+            fc = tf.nn.bias_add(tf.matmul(in_tensor, weights), biases, name='lin')
+            relu = tf.nn.relu(fc, name='relu')
+            return relu, fc
