@@ -118,10 +118,8 @@ class AlexNet:
 
         assert input_name in self.names
         names_to_build = [n for n in self.names if 'lin' not in n]
-        print(len(names_to_build))
         start = names_to_build.index(input_name)
         names_to_build = names_to_build[start:]
-        print(names_to_build)
 
         build_ops = []
         build_ops.append(lambda x: tf.multiply(x, rescale, name='rgb_scaled'))
@@ -170,13 +168,7 @@ class AlexNet:
         # prob
         build_ops.append(lambda x: tf.nn.softmax(x))
 
-        print(1, len(build_ops))
-        print(2, len(self.names))
-        print(3, len(names_to_build))
-
         build_ops = build_ops[-len(names_to_build):]
-        print(4, len(build_ops))
-
         temp_tensor = in_tensor
         for op in build_ops:
             temp_tensor = op(temp_tensor)
