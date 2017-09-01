@@ -37,7 +37,7 @@ class AlexNet:
                       'conv5/lin', 'conv5/relu', 'pool5',
                       'fc6/lin', 'fc6/relu',
                       'fc7/lin', 'fc7/relu',
-                      'fc8/lin', 'fc8/relu', 'softmax']
+                      'fc8/lin', 'fc8/relu']
 
     def build(self, rgb, rescale=255.0):
 
@@ -114,7 +114,7 @@ class AlexNet:
 
         if 'lin' in input_name:
             in_tensor = tf.nn.relu(in_tensor)
-            input_name.replace('lin', 'relu')
+            input_name = input_name.replace('lin', 'relu')
 
         assert input_name in self.names
         names_to_build = [n for n in self.names if 'lin' not in n]
@@ -163,19 +163,19 @@ class AlexNet:
 
         # fc6
         build_ops.append(lambda x: self.fc_layer(in_tensor=tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))],
-                                                                      name='pool5_flat'), name='fc6'))
+                                                                      name='pool5_flat'), name='fc6')[0])
         build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc7')[0])
         build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc8')[0])
 
         # prob
         build_ops.append(lambda x: tf.nn.softmax(x))
 
-        print(len(build_ops))
-        print(len(self.names))
-        print(len(names_to_build))
+        print(1, len(build_ops))
+        print(2, len(self.names))
+        print(3, len(names_to_build))
 
         build_ops = build_ops[-len(names_to_build):]
-        print(len(build_ops))
+        print(4, len(build_ops))
 
         temp_tensor = in_tensor
         for op in build_ops:
