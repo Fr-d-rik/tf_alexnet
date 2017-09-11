@@ -48,7 +48,7 @@ class AlexNet:
         bgr_normed = tf.concat(axis=3, values=[blue, green, red], name='bgr_normed')
 
         # conv1
-        conv1 = self.convolution(bgr_normed, s_h=4, s_w=4, group=1, name='conv1')
+        conv1 = self.convolution(bgr_normed, s_h=4, s_w=4, group=1, name='conv1', padding='VALID')
         lrn1 = tf.nn.local_response_normalization(conv1, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0, name='lrn1')
         maxpool1 = tf.nn.max_pool(lrn1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID', name='pool1')
 
@@ -81,7 +81,7 @@ class AlexNet:
 
         self.data_dict = None
 
-    def convolution(self, in_tensor, s_h, s_w, group, name):
+    def convolution(self, in_tensor, s_h, s_w, group, name, padding='SAME'):
         """From https://github.com/ethereon/caffe-tensorflow
         """
         with tf.variable_scope(name):
@@ -89,11 +89,11 @@ class AlexNet:
             kernel = tf.constant(self.data_dict[name][0], name='filter')
             biases = tf.constant(self.data_dict[name][1], name='biases')
             if group == 1:
-                conv = tf.nn.conv2d(in_tensor, kernel, [1, s_h, s_w, 1], padding='SAME')
+                conv = tf.nn.conv2d(in_tensor, kernel, [1, s_h, s_w, 1], padding=padding)
             else:
                 input_groups = tf.split(in_tensor, group, 3)
                 kernel_groups = tf.split(kernel, group, 3)
-                output_groups = [tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding='SAME')
+                output_groups = [tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
                                  for i, k in zip(input_groups, kernel_groups)]
                 conv = tf.concat(output_groups, 3)
             conv_lin = tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:], name='lin')
@@ -121,7 +121,7 @@ class AlexNet:
         start = names_to_build.index(input_name)
         names_to_build = names_to_build[start:]
 
-        build_ops = []
+        build_ops = list()
         build_ops.append(lambda x: tf.multiply(x, rescale, name='rgb_scaled'))
 
         def rgb2bgr(x):
