@@ -39,7 +39,7 @@ class AlexNet:
                       'fc7/lin', 'fc7/relu',
                       'fc8/lin', 'fc8/relu']
 
-    def build(self, rgb, rescale=255.0):
+    def build(self, rgb, rescale=1.0):
 
         rgb_scaled = tf.multiply(rgb, rescale, name='rgb_scaled')
 
