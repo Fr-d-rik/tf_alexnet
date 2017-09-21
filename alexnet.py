@@ -77,7 +77,7 @@ class AlexNet:
         relu8, _ = self.fc_layer(in_tensor=relu7, name='fc8')
 
         # prob
-        tf.nn.softmax(relu8)
+        tf.nn.softmax(relu8, name='softmax')
 
         self.data_dict = None
 
@@ -166,7 +166,7 @@ class AlexNet:
         build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc8')[0])
 
         # prob
-        build_ops.append(lambda x: tf.nn.softmax(x))
+        build_ops.append(lambda x: tf.nn.softmax(x, name='softmax'))
 
         build_ops = build_ops[-len(names_to_build):]
         temp_tensor = in_tensor
