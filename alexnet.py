@@ -20,7 +20,7 @@ import tensorflow as tf
 
 class AlexNet:
 
-    def __init__(self, weights_path=None):
+    def __init__(self, weights_path=None, make_dict=False):
         if weights_path is None:
             path = inspect.getfile(AlexNet)
             path = os.path.abspath(os.path.join(path, os.pardir))
@@ -38,6 +38,8 @@ class AlexNet:
                       'fc6/lin', 'fc6/relu',
                       'fc7/lin', 'fc7/relu',
                       'fc8/lin', 'fc8/relu']
+        self.tensors = dict() if make_dict else None
+        self.make_dict = make_dict
 
     def build(self, rgb, rescale=1.0):
 
@@ -77,7 +79,16 @@ class AlexNet:
         relu8, _ = self.fc_layer(in_tensor=relu7, name='fc8')
 
         # prob
-        tf.nn.softmax(relu8, name='softmax')
+        softmax = tf.nn.softmax(relu8, name='softmax')
+
+        if self.make_dict:
+            self.tensors['rgb'] = rgb
+            self.tensors['rgb_scaled'] = rgb_scaled
+            self.tensors['bgr_normed'] = bgr_normed
+            self.tensors['pool1'] = maxpool1
+            self.tensors['pool2'] = maxpool2
+            self.tensors['pool5'] = maxpool5
+            self.tensors['softmax'] = softmax
 
         self.data_dict = None
 
@@ -98,6 +109,10 @@ class AlexNet:
                 conv = tf.concat(output_groups, 3)
             conv_lin = tf.reshape(tf.nn.bias_add(conv, biases), [-1] + conv.get_shape().as_list()[1:], name='lin')
             conv = tf.nn.relu(conv_lin, name='relu')
+
+            if self.make_dict:
+                self.tensors[name + '/lin'] = conv_lin
+                self.tensors[name + '/relu'] = conv
             return conv
 
     def fc_layer(self, in_tensor, name):
@@ -108,6 +123,10 @@ class AlexNet:
 
             fc = tf.nn.bias_add(tf.matmul(in_tensor, weights), biases, name='lin')
             relu = tf.nn.relu(fc, name='relu')
+
+            if self.make_dict:
+                self.tensors[name + '/lin'] = fc
+                self.tensors[name + '/relu'] = relu
             return relu, fc
 
     def build_partial(self, in_tensor, input_name, rescale=255.0):
@@ -158,10 +177,10 @@ class AlexNet:
 
         # flatten
         # noinspection PyTypeChecker
-
-        # fc6
         build_ops.append(lambda x: self.fc_layer(in_tensor=tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))],
                                                                       name='pool5_flat'), name='fc6')[0])
+
+        # fc6
         build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc7')[0])
         build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc8')[0])
 
