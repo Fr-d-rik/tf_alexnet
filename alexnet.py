@@ -198,12 +198,10 @@ class AlexNet:
         # prob
         build_ops.append(lambda x: tf.nn.softmax(x, name='softmax'))
 
-        print(names_to_build)
-        print(len(names_to_build), len(build_ops))
-        start_idx = names_to_build.index(input_name) + 1
-        end_idx = names_to_build.index(output_name) + 1
+        start_idx = names_to_build.index(input_name)
+        end_idx = names_to_build.index(output_name)
         build_ops = build_ops[start_idx:end_idx]
-        print(names_to_build[start_idx:end_idx])
+        print('building partial alexnet:', names_to_build[start_idx + 1:end_idx + 1])
         temp_tensor = in_tensor
         for op in build_ops:
             temp_tensor = op(temp_tensor)
