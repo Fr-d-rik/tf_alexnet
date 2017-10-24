@@ -37,7 +37,8 @@ class AlexNet:
                       'conv5/lin', 'conv5/relu', 'pool5',
                       'fc6/lin', 'fc6/relu',
                       'fc7/lin', 'fc7/relu',
-                      'fc8/lin', 'fc8/relu']
+                      'fc8/lin', 'fc8/relu',
+                      'softmax']
         self.tensors = dict() if make_dict else None
         self.make_dict = make_dict
 
@@ -50,23 +51,23 @@ class AlexNet:
         bgr_normed = tf.concat(axis=3, values=[blue, green, red], name='bgr_normed')
 
         # conv1
-        conv1 = self.convolution(bgr_normed, s_h=4, s_w=4, group=1, name='conv1', padding='VALID')
+        conv1, _ = self.convolution(bgr_normed, s_h=4, s_w=4, group=1, name='conv1', padding='VALID')
         lrn1 = tf.nn.local_response_normalization(conv1, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0, name='lrn1')
         maxpool1 = tf.nn.max_pool(lrn1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID', name='pool1')
 
         # conv2
-        conv2 = self.convolution(maxpool1, s_h=1, s_w=1, group=2, name='conv2')
+        conv2, _ = self.convolution(maxpool1, s_h=1, s_w=1, group=2, name='conv2')
         lrn2 = tf.nn.local_response_normalization(conv2, depth_radius=2, alpha=2e-05, beta=0.75, bias=1.0, name='lrn2')
         maxpool2 = tf.nn.max_pool(lrn2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID', name='pool2')
 
         # conv3
-        conv3 = self.convolution(maxpool2, s_h=1, s_w=1, group=1, name='conv3')
+        conv3, _ = self.convolution(maxpool2, s_h=1, s_w=1, group=1, name='conv3')
 
         # conv4
-        conv4 = self.convolution(conv3, s_h=1, s_w=1, group=2, name='conv4')
+        conv4, _ = self.convolution(conv3, s_h=1, s_w=1, group=2, name='conv4')
 
         # conv5
-        conv5 = self.convolution(conv4, s_h=1, s_w=1, group=2, name='conv5')
+        conv5, _ = self.convolution(conv4, s_h=1, s_w=1, group=2, name='conv5')
         maxpool5 = tf.nn.max_pool(conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID', name='pool5')
 
         # flatten
@@ -113,7 +114,7 @@ class AlexNet:
             if self.make_dict:
                 self.tensors[name + '/lin'] = conv_lin
                 self.tensors[name + '/relu'] = conv
-            return conv
+            return conv, conv_lin
 
     def fc_layer(self, in_tensor, name):
         with tf.variable_scope(name):
@@ -129,16 +130,25 @@ class AlexNet:
                 self.tensors[name + '/relu'] = relu
             return relu, fc
 
-    def build_partial(self, in_tensor, input_name, rescale=255.0):
+    def build_partial(self, in_tensor, input_name, output_name=None, rescale=1.0):
 
         if 'lin' in input_name:
             in_tensor = tf.nn.relu(in_tensor)
             input_name = input_name.replace('lin', 'relu')
 
-        assert input_name in self.names
         names_to_build = [n for n in self.names if 'lin' not in n]
-        start = names_to_build.index(input_name)
-        names_to_build = names_to_build[start:]
+        assert input_name in names_to_build
+
+        output_name = output_name or 'softmax'
+        if 'lin' in output_name:
+            assert output_name.startswith('conv')
+            lin_out_option = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+            lin_idx = int(output_name[4])
+            lin_out_option[lin_idx] = 1
+            output_name = output_name.replace('lin', 'relu')
+        else:
+            lin_out_option = (0, 0, 0, 0, 0, 0, 0, 0, 0)
+        assert output_name in names_to_build
 
         build_ops = list()
         build_ops.append(lambda x: tf.multiply(x, rescale, name='rgb_scaled'))
@@ -151,45 +161,53 @@ class AlexNet:
         build_ops.append(rgb2bgr)
 
         # conv1
-        build_ops.append(lambda x: self.convolution(x, s_h=4, s_w=4, group=1, name='conv1'))
+        build_ops.append(lambda x: self.convolution(x, s_h=4, s_w=4, group=1, name='conv1')[lin_out_option[1]])
         build_ops.append(lambda x: tf.nn.local_response_normalization(x, depth_radius=2, alpha=2e-05,
                                                                       beta=0.75, bias=1.0, name='lrn1'))
         build_ops.append(lambda x: tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
                                                   padding='VALID', name='pool1'))
 
         # conv2
-        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv2'))
+        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv2')[lin_out_option[2]])
         build_ops.append(lambda x: tf.nn.local_response_normalization(x, depth_radius=2, alpha=2e-05,
                                                                       beta=0.75, bias=1.0, name='lrn2'))
         build_ops.append(lambda x: tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
                                                   padding='VALID', name='pool2'))
 
         # conv3
-        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=1, name='conv3'))
+        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=1, name='conv3')[lin_out_option[3]])
 
         # conv4
-        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv4'))
+        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv4')[lin_out_option[4]])
 
         # conv5
-        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv5'))
+        build_ops.append(lambda x: self.convolution(x, s_h=1, s_w=1, group=2, name='conv5')[lin_out_option[5]])
         build_ops.append(lambda x: tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
                                                   padding='VALID', name='pool5'))
 
         # flatten
         # noinspection PyTypeChecker
         build_ops.append(lambda x: self.fc_layer(in_tensor=tf.reshape(x, [-1, int(np.prod(x.get_shape()[1:]))],
-                                                                      name='pool5_flat'), name='fc6')[0])
+                                                                      name='pool5_flat'),
+                                                 name='fc6')[lin_out_option[6]])
 
         # fc6
-        build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc7')[0])
-        build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc8')[0])
+        build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc7')[lin_out_option[7]])
+        build_ops.append(lambda x: self.fc_layer(in_tensor=x, name='fc8')[lin_out_option[8]])
 
         # prob
         build_ops.append(lambda x: tf.nn.softmax(x, name='softmax'))
 
-        build_ops = build_ops[-len(names_to_build):]
+        print(names_to_build)
+        print(len(names_to_build), len(build_ops))
+        start_idx = names_to_build.index(input_name) + 1
+        end_idx = names_to_build.index(output_name) + 1
+        build_ops = build_ops[start_idx:end_idx]
+        print(names_to_build[start_idx:end_idx])
         temp_tensor = in_tensor
         for op in build_ops:
             temp_tensor = op(temp_tensor)
+        out_tensor = temp_tensor
 
         self.data_dict = None
+        return out_tensor
